@@ -6,10 +6,8 @@ pipeline {
         DOCKERHUB_PASS = credentials('dockerhub-credentials-deploy') // id credential
         IMAGE_NAME = 'thanhkon241203265/docker-deploy' // ten image
 
-        // Cấu hình Kubernetes
-        K8S_CONFIG_CREDENTIALS_ID = 'kurbenet-config' // ID File Credential (kubeconfig)
+        K8S_DEPLOYMENT_NAME = 'springboot-app'
         K8S_NAMESPACE = 'default'
-        K8S_DEPLOYMENT_NAME = 'springboot-deploy' // Tên phải match với metadata:name ở deployment.yaml
     }
     tools {
         maven 'MAVEN_HOME'
@@ -59,35 +57,42 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
-            steps {
-                echo '🚀 Deploying new image and ensuring Kubernetes resources are applied...'
-                withCredentials([file(credentialsId: 'kurbenet-config', variable: 'KUBECONFIG_FILE')]) {
-                    script {
-                        def imageTag = "v${env.BUILD_NUMBER}"
-                        def fullImage = "${env.IMAGE_NAME}:${imageTag}"
-
-                        env.KUBECONFIG = KUBECONFIG_FILE
-                        bat 'kubectl config current-context'
-                        bat 'kubectl cluster-info'
-                        bat "kubectl apply -f ${WORKSPACE}/demo/service.yaml -n ${env.K8S_NAMESPACE}"
-                        bat "kubectl apply -f ${WORKSPACE}/demo/deployment.yaml -n ${env.K8S_NAMESPACE}"
-                        bat 'kubectl get po -n default'
-                        bat "kubectl set image deployment/${env.K8S_DEPLOYMENT_NAME} springboot=${fullImage} -n ${env.K8S_NAMESPACE}"
-
-                        // Chờ Rollout hoàn tất
-                        bat "kubectl rollout status deployment/${env.K8S_DEPLOYMENT_NAME} -n ${env.K8S_NAMESPACE}"
-
-                        echo "Deployment ${env.K8S_DEPLOYMENT_NAME} updated with image: ${fullImage}"
-                    }
-                }
-            }
-        }
         stage('Test') {
             steps {
                 // Run Maven tests
                 dir('demo') {
                     bat 'mvn test'
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo '🚀 Deploying image to Kubernetes cluster...'
+
+                withCredentials([file(credentialsId: 'kurbenet-config', variable: 'KUBECONFIG_FILE')]) {
+                    script {
+                        env.KUBECONFIG = KUBECONFIG_FILE
+                        def imageTag = "v${env.BUILD_NUMBER}"
+                        def fullImage = "${IMAGE_NAME}:${imageTag}"
+
+                        // 🔍 Hiển thị context hiện tại
+                        bat 'kubectl config current-context'
+                        echo 'kubectl config current-context'
+
+                        // 🧠 Áp dụng service và deployment
+                        bat "minikube kubectl apply -f ${WORKSPACE}/demo/service.yaml -n ${env.K8S_NAMESPACE}"
+                        bat "minikube kubectl apply -f ${WORKSPACE}/demo/deployment.yaml -n ${env.K8S_NAMESPACE}"
+
+                        echo '📋 Checking current resources...'
+                        bat 'kubectl get pods -n default'
+                        bat 'kubectl get svc -n default'
+                        // 🔄 Cập nhật image mới cho Deployment
+                        bat "minikube kubectl set image deployment/${env.K8S_DEPLOYMENT_NAME} springboot=${fullImage} -n ${env.K8S_NAMESPACE}"
+
+                        // ⏳ Chờ rollout hoàn tất
+                        bat "minikube kubectl rollout status deployment/${env.K8S_DEPLOYMENT_NAME} -n ${env.K8S_NAMESPACE}"
+                    }
                 }
             }
         }
