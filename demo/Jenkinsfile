@@ -1,5 +1,35 @@
-stage('Run Application') {
-    steps {
-        echo 'dang trong file jenkin'
+pipeline {
+    agent any
+    stages {
+        stage('Checkout') {
+            steps {
+                echo '📦 Cloning GitHub repository...'
+                git branch: 'main', url: 'https://github.com/thanh241203/demo-with-kurbenet.git'
+            }
+        }
+        stage('Build') {
+            steps {
+                // Run Maven build
+                sh 'mvn clean install'
+            }
+        }
+        stage('Test') {
+            steps {
+                // Run Maven tests
+                sh 'mvn test'
+            }
+        }
+        stage('Package') {
+            steps {
+                // Package the application (optional)
+                sh 'mvn package'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Pipeline finished successfully! Image built and deployed.'
+        }
     }
 }
