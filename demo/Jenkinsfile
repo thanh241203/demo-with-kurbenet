@@ -1,5 +1,11 @@
 pipeline {
     agent any
+
+    environment {
+        DOCKERHUB_USER = 'thanhkon241203265'
+        DOCKERHUB_PASS = credentials('dockerhub-credentials-deploy')
+        IMAGE_NAME = 'thanhkon241203265/docker-deploy'
+    }
     tools {
         maven 'MAVEN_HOME'
         jdk 'JDK17'
@@ -13,9 +19,37 @@ pipeline {
         }
         stage('Build') {
             steps {
-                // Run Maven build
+                echo '🔨 Building the project...'
                 dir('demo') {
-                    bat 'mvn clean install'
+                    bat 'mvn clean package -DskipTests'
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                dir('demo') {
+                    script {
+                        def imageTag = "v${env.BUILD_NUMBER}"
+                        bat "docker build -t ${IMAGE_NAME}:${imageTag} ."
+                        bat "docker tag ${IMAGE_NAME}:${imageTag} ${IMAGE_NAME}:latest"
+                    }
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials-deploy', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    script {
+                        def imageTag = "v${env.BUILD_NUMBER}"
+                        bat """
+                    echo Logging in to DockerHub...
+                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                    docker push ${IMAGE_NAME}:${imageTag}
+                    docker push ${IMAGE_NAME}:latest
+                """
+                    }
                 }
             }
         }
@@ -24,13 +58,6 @@ pipeline {
                 // Run Maven tests
                 dir('demo') {
                     bat 'mvn test'
-                }
-            }
-        }
-        stage('Package') {
-            steps {
-                dir('demo') {
-                    bat 'mvn package'
                 }
             }
         }
