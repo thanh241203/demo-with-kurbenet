@@ -2,9 +2,14 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = 'thanhkon241203265'
-        DOCKERHUB_PASS = credentials('dockerhub-credentials-deploy')
-        IMAGE_NAME = 'thanhkon241203265/docker-deploy'
+        DOCKERHUB_USER = 'thanhkon241203265' // ten docker desktop của ban
+        DOCKERHUB_PASS = credentials('dockerhub-credentials-deploy') // id credential
+        IMAGE_NAME = 'thanhkon241203265/docker-deploy' // ten image
+
+        // Cấu hình Kubernetes
+        K8S_CONFIG_CREDENTIALS_ID = 'kurbenet-config' // ID File Credential (kubeconfig)
+        K8S_NAMESPACE = 'default'
+        K8S_DEPLOYMENT_NAME = 'springboot-deploy' // Tên phải match với metadata:name ở deployment.yaml
     }
     tools {
         maven 'MAVEN_HOME'
@@ -49,6 +54,31 @@ pipeline {
                     docker push ${IMAGE_NAME}:${imageTag}
                     docker push ${IMAGE_NAME}:latest
                 """
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo '🚀 Deploying new image and ensuring Kubernetes resources are applied...'
+                withCredentials([file(credentialsId: 'kurbenet-config', variable: 'KUBECONFIG_FILE')]) {
+                    script {
+                        def imageTag = "v${env.BUILD_NUMBER}"
+                        def fullImage = "${env.IMAGE_NAME}:${imageTag}"
+
+                        env.KUBECONFIG = KUBECONFIG_FILE
+                        bat 'kubectl config current-context'
+                        bat 'kubectl cluster-info'
+                        bat "kubectl apply -f ${WORKSPACE}/demo/service.yaml -n ${env.K8S_NAMESPACE}"
+                        bat "kubectl apply -f ${WORKSPACE}/demo/deployment.yaml -n ${env.K8S_NAMESPACE}"
+                        bat 'kubectl get po -n default'
+                        bat "kubectl set image deployment/${env.K8S_DEPLOYMENT_NAME} springboot=${fullImage} -n ${env.K8S_NAMESPACE}"
+
+                        // Chờ Rollout hoàn tất
+                        bat "kubectl rollout status deployment/${env.K8S_DEPLOYMENT_NAME} -n ${env.K8S_NAMESPACE}"
+
+                        echo "Deployment ${env.K8S_DEPLOYMENT_NAME} updated with image: ${fullImage}"
                     }
                 }
             }
