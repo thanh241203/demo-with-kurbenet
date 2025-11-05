@@ -81,12 +81,12 @@ pipeline {
                         echo 'kubectl config current-context'
 
                         // 🧠 Áp dụng service và deployment
-                        bat "minikube kubectl apply -f ${WORKSPACE}/demo/service.yaml -n ${env.K8S_NAMESPACE}"
-                        bat "minikube kubectl apply -f ${WORKSPACE}/demo/deployment.yaml -n ${env.K8S_NAMESPACE}"
+                        bat "minikube kubectl -- apply -f ${WORKSPACE}/demo/service.yaml -n ${env.K8S_NAMESPACE}"
+                        bat "minikube kubectl -- apply -f ${WORKSPACE}/demo/deployment.yaml -n ${env.K8S_NAMESPACE}"
 
                         echo '📋 Checking current resources...'
-                        bat 'kubectl get pods -n default'
-                        bat 'kubectl get svc -n default'
+                        bat 'minikube kubectl -- get pods -n default'
+                        bat 'minikube kubectl -- get svc -n default'
                         // 🔄 Cập nhật image mới cho Deployment
                         bat "minikube kubectl set image deployment/${env.K8S_DEPLOYMENT_NAME} springboot=${fullImage} -n ${env.K8S_NAMESPACE}"
 
