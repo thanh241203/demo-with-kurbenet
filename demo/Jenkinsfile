@@ -10,19 +10,24 @@ pipeline {
         stage('Build') {
             steps {
                 // Run Maven build
-                bat 'mvn clean install'
+                dir('demo') {
+                    bat 'mvn clean install'
+                }
             }
         }
         stage('Test') {
             steps {
                 // Run Maven tests
-                bat 'mvn test'
+                dir('demo') {
+                    bat 'mvn test'
+                }
             }
         }
         stage('Package') {
             steps {
-                // Package the application (optional)
-                bat 'mvn package'
+                dir('demo') {
+                    bat 'mvn package'
+                }
             }
         }
     }
