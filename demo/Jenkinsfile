@@ -81,8 +81,8 @@ pipeline {
                         echo 'kubectl config current-context'
 
                         // 🧠 Áp dụng service và deployment
-                        bat "minikube kubectl -- apply -f ${WORKSPACE}/demo/service.yaml -n ${env.K8S_NAMESPACE}"
-                        bat "minikube kubectl -- apply -f ${WORKSPACE}/demo/deployment.yaml -n ${env.K8S_NAMESPACE}"
+                        bat "minikube kubectl -- apply -f ${WORKSPACE}/demo/service.yaml -n ${env.K8S_NAMESPACE} --validate=false"
+                        bat "minikube kubectl -- apply -f ${WORKSPACE}/demo/deployment.yaml -n ${env.K8S_NAMESPACE} --validate=false"
 
                         echo '📋 Checking current resources...'
                         bat 'minikube kubectl -- get pods -n default'
